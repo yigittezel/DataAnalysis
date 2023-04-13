@@ -1,10 +1,13 @@
 import requests
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # API parameters
 base_url = 'https://archive-api.open-meteo.com/v1/era5'
-parameter_temp = 'temperature_2m'
-parameter_wind = 'wind_speed_10m'
+
+parameter = 'temperature_2m' 
 
 # Step 1: Fetch failed launches from SpaceX API
 response = requests.get('https://api.spacexdata.com/v4/launches/past?limit=100')
@@ -19,38 +22,39 @@ for launch in failed_launches:
     if site == '5e9e4502f5090995de566f86':
         latitude = '9.04'
         longitude = '167.74'
+        location = 'Omelek Island'
     else:
-        latitude = '28,41'
-        longitude = '-80,60'
-    
+        latitude = '28.41'
+        longitude = '-80.60'
+        location = 'Cape Canaveral'
 
-    forecast_days.append({'date': date, 'site': site})
+    forecast_days.append({'date': date, 'location': location})
 
-# Step 3: Query the weather API for each day and extract the hourly temperature and wind speed data
+# Step 3: Query the weather API for each day and extract the hourly temperature data
 temperatures = []
-wind_speeds = []
 for day in forecast_days:
-    # Build the API request URLs
-    api_url_temp = f"{base_url}?latitude={latitude}&longitude={longitude}&start_date={day['date']}&end_date={day['date']}&hourly={parameter_temp}"
-    api_url_wind = f"{base_url}?latitude={latitude}&longitude={longitude}&start_date={day['date']}&end_date={day['date']}&hourly={parameter_wind}"
+    # Build the API request URL
+    api_url = f"{base_url}?latitude={latitude}&longitude={longitude}&start_date={day['date']}&end_date={day['date']}&hourly={parameter}"
 
-    # Send the API requests
-    response_temp = requests.get(api_url_temp)
-    response_wind = requests.get(api_url_wind)
+    # Send the API request
+    response = requests.get(api_url)
 
-    # Convert the responses to dictionaries
-    data_temp = response_temp.json()
-    data_wind = response_wind.json()
+    # Convert the response to a dictionary
+    data = response.json()
 
-    # Extract the hourly temperature and wind speed data and store it in Pandas DataFrames
-    for i in range(len(data_temp['hourly'][parameter_temp])):
-        date = data_temp['hourly']['time'][i]
-        temp = data_temp['hourly'][parameter_temp][i]
-        wind_speed = data_wind['hourly'][parameter_wind][i]
-        temperatures.append({'date': date, 'temperature': temp, 'wind_speed_kmh': wind_speed, 'site': day['site']})
+    # Extract the hourly temperature data and store it in a Pandas DataFrame
+    for i in range(len(data['hourly'][parameter])):
+        date = data['hourly']['time'][i]
+        temp = data['hourly'][parameter][i]
+        temperatures.append({'date': date, 'temperature': temp, 'location': day['location']})
 
-# Convert the temperature and wind speed data to a Pandas DataFrame
+# Convert the temperature data to a Pandas DataFrame
 df = pd.DataFrame(temperatures)
 
-# Display the temperature and wind speed data as a table
+sns.catplot(y="date", x="temperature", data=df, aspect = 5)
+plt.xlabel("temperature",fontsize=20)
+plt.ylabel("date",fontsize=20)
+plt.show()
+
+# Display the temperature data as a table
 display(df)
