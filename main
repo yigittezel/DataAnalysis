@@ -1,0 +1,56 @@
+import requests
+import pandas as pd
+
+# API parameters
+base_url = 'https://archive-api.open-meteo.com/v1/era5'
+parameter_temp = 'temperature_2m'
+parameter_wind = 'wind_speed_10m'
+
+# Step 1: Fetch failed launches from SpaceX API
+response = requests.get('https://api.spacexdata.com/v4/launches/past?limit=100')
+failed_launches = [launch for launch in response.json() if launch['success'] == False]
+
+# Step 2: Extract launch dates, locations, and landing sites from failed launches
+forecast_days = []
+for launch in failed_launches:
+    date = launch['date_utc'][:10]
+    site = launch['launchpad']
+    
+    if site == '5e9e4502f5090995de566f86':
+        latitude = '9.04'
+        longitude = '167.74'
+    else:
+        latitude = '28,41'
+        longitude = '-80,60'
+    
+
+    forecast_days.append({'date': date, 'site': site})
+
+# Step 3: Query the weather API for each day and extract the hourly temperature and wind speed data
+temperatures = []
+wind_speeds = []
+for day in forecast_days:
+    # Build the API request URLs
+    api_url_temp = f"{base_url}?latitude={latitude}&longitude={longitude}&start_date={day['date']}&end_date={day['date']}&hourly={parameter_temp}"
+    api_url_wind = f"{base_url}?latitude={latitude}&longitude={longitude}&start_date={day['date']}&end_date={day['date']}&hourly={parameter_wind}"
+
+    # Send the API requests
+    response_temp = requests.get(api_url_temp)
+    response_wind = requests.get(api_url_wind)
+
+    # Convert the responses to dictionaries
+    data_temp = response_temp.json()
+    data_wind = response_wind.json()
+
+    # Extract the hourly temperature and wind speed data and store it in Pandas DataFrames
+    for i in range(len(data_temp['hourly'][parameter_temp])):
+        date = data_temp['hourly']['time'][i]
+        temp = data_temp['hourly'][parameter_temp][i]
+        wind_speed = data_wind['hourly'][parameter_wind][i]
+        temperatures.append({'date': date, 'temperature': temp, 'wind_speed_kmh': wind_speed, 'site': day['site']})
+
+# Convert the temperature and wind speed data to a Pandas DataFrame
+df = pd.DataFrame(temperatures)
+
+# Display the temperature and wind speed data as a table
+display(df)
